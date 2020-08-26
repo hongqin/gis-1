@@ -1,5 +1,5 @@
 # gis-1 <img src="/img/logo.png" align="right" />
-[![](https://img.shields.io/badge/seminar-%20data%20mapping%20in%20R-brightgreen.svg)](https://github.com/slu-dss/visualization-01/)
+[![](https://img.shields.io/badge/seminar-%20mapping%20in%20R-brightgreen.svg)](https://github.com/slu-dss/gis-1/)
 [![](https://img.shields.io/badge/lesson%20status-under%20development-red.svg)](https://github.com/slu-dss/gis-1/)
 [![](https://img.shields.io/github/release/slu-dss/gis-1.svg?label=version)](https://github.com/slu-dss/gis-1/releases)
 [![](https://img.shields.io/github/last-commit/slu-dss/gis-1.svg)](https://github.com/slu-dss/gis-1/commits/master)
@@ -16,7 +16,6 @@ At the end of this lesson, participants should be able to:
 4. Explore spatial data using the `mapview` package as well as `View()`
 
 ### Lesson Resources
-* The [`SETUP.md`](/references/SETUP.md) file in the [`references/`](/references) directory contains a list of packages required for this lesson
 * The [`notebook/`](/notebook) directory contains the materials for this lesson.
 
 ### Extra Resources
