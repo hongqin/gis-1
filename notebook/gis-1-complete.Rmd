@@ -1,0 +1,200 @@
+---
+title: "GIS 1 - Spatial Data Basics - Completed Version"
+author: "Christopher Prener, Ph.D."
+date: '(`r format(Sys.time(), "%B %d, %Y")`)'
+output:
+  github_document: default
+  html_notebook: default
+always_allow_html: yes
+---
+
+## Introduction
+This notebook provides a walk-through of the code for for the first seminar meeting of "Mapping in `R`."
+
+## Dependencies
+This notebook requires the following packages:
+
+```{r load-packages}
+# tidyverse packages
+library(magrittr)     # pipe operator
+library(readr)        # csv tools
+
+# mapping packages
+library(mapview)      # preview spatial data
+library(leaflet)      # interactive maps
+library(sf)           # spatial tools
+
+# other packages
+library(here)         # file path management
+```
+
+## Leaflet
+As a way to get to know `R` and RStudio, we'll be working with the `R` package [`leaflet`](https://rstudio.github.io/leaflet/). `leaflet` is the `R` implementation of [`leaflet.js`](http://leafletjs.com), an open-source Java Script library for building interactive maps.
+
+### A Simple Map
+
+`leaflet` itself is straightforward to get up and running. If we wanted an interactive map with a marker placed on-top of Morrissey Hall, we would use the following script entered into `R`:
+
+```{r map-morrissey}
+leaflet() %>%
+  addTiles() %>%
+  addMarkers(lng=-90.237104, lat=38.637547, popup="Morrissey Hall")
+```
+
+The `leaflet()` function creates a map widget, and the `addTiles()` function adds a base map to it. By default, [OpenStreetMap](https://www.openstreetmap.org) is used for the base map. Finally, we use `addMarkers()` to specify the longitude and latitude of our marker, and we enter in a label that will appear as a pop-up when a user clicks on the marker. `lng`, `lat`, and `popup` are all called "arguments" - these are used to control how a function operates.
+
+The `%>%` is called the "pipe operator", and it is used to chain together functions in what we will call "pipelines". This pipeline can be read like a list, with the word **then** substituted for each instance of `%>%`:
+
+1. First we create a map widget, **then**
+2. we add base map tiles, **then**
+3. we add a marker at the given longitude and latitude.
+
+### Changing the Base Map
+
+To alter the base map, we can use `addProviderTiles()` in place of `addTiles()`. I like the CartoDB "Positron" base map. To use the Positron base map, we create a second pipeline:
+
+```{r map-morrissey-carto}
+leaflet() %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addMarkers(lng=-90.237104, lat=38.637547, popup="Morrissey Hall")
+```
+
+Two things are important to note here. When we load the `leaflet` package, we have access to a data object called `providers`. You can use the following syntax to explore it:
+
+```{r explore}
+names(providers)
+```
+
+`providers` is a vector of items, each of which corresponds to a different base map. We can select one of those items, `CartoDB.Positron`, by separating `providers` from the item name with a dollar sign (`$`). This is a classic way in which elements of a data set are accessed in `R` syntax.
+
+Now, you try to select a base map from `providers` and alter the code chunk from above to reproduce the map showing Morrissey Hall:
+
+```{r map-morrissey-alt}
+leaflet() %>%
+  addProviderTiles(providers$CartoDB.DarkMatter) %>%
+  addMarkers(lng=-90.237104, lat=38.637547, popup="Morrissey Hall")
+```
+
+### Adding Additional Points
+
+The `data/sluPlaces.csv` file (a `.csv` file is a type of spreadsheet) contains information on a couple of other places where I find myself regularly on campus. We can read it into `R` using the `readr` package (part of the tidyverse):
+
+```{r read-place-data}
+sluPlaces <- read_csv(here("data", "sluPlaces.csv"))
+```
+
+We read the statement from right to left - the data found at `data/sluPlaces.csv` is read correctly as `.csv` data, and the resulting imported data is stored in an object in our global environment named `sluPlaces`. The `here()` function helps us write simple, operating system agnostic file paths that will always be relative to where the `.Rproj` file is stored. We'll talk more about this as the semester progresses.
+
+We can explore the data a number of ways, including with the `View()` (output not shown) function and the `str()` function:
+
+```{r explore-slu}
+str(sluPlaces)
+```
+
+If we wanted to use `View()`, it would be implemented like this:
+
+```r
+View(sluPlaces)
+```
+
+When executed in the console, it will produce a spreadsheet-like view within RStudio.
+
+The `.csv` data are *tabular* data - they contain longitude and latitude data, but they are not *projected*. This means we are missing the geometric data that locates these longitude and latitude data in space. leaflet can take these spatial references, however, and convert them to usable geometric data. We do so using a very similar process to what we did before:
+
+```{r map-places}
+leaflet(data = sluPlaces) %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addMarkers(lng = ~lng, lat = ~lat, popup = ~name)
+```
+
+The `data = sluPlaces` argument in `leaflet()` directs `R` to the appropriate data set to map. We use the tilde (`~`) to indicate to leaflet that these are variables within `sluPlaces`.
+
+## Converting to `sf` Objects
+
+In practice, we don't usually build maps this way. Instead, we convert our tabular data to an `sf` object, which contains a `geometry` column that is ready for mapping and spatial data wrangling. Our `sluPlaces` data can be converted using the `st_as_sf()` function from the `sf` package. 
+
+```{r convert-sluPlaces}
+sluPlaces_sf <- st_as_sf(sluPlaces, coords = c("lng", "lat"), crs = 4269)
+```
+
+The `lng` and `lat` columns contain our `x` and `y` values for coordinates, respectively. `lng` is short for "longitude," which are the vertical lines that extend east and west from the prime meridian. `lat` is short for latitude, which are the horizontal lines that extend north and south from the equator. 
+
+The `crs` value of `4269` refers to a *geographic coordinate system,* which is a model of the earth's surface that expresses locations in decimal degrees. These are another way of representing longitude and latitude. `4269` is known as "NAD83," which stands for North American Datum 1983. This is a model that is specific to North America. The other common geographic coordinate system we use is WGS84, which can be used anywhere in the world. Its `crs` value is `4326`.
+
+Once we build `sluPlaces_sf`, we can see that its properties have changed:
+
+```{r class-sf}
+class(sluPlaces)
+class(sluPlaces_sf)
+```
+
+We can also easily start to work with our data. For example, we can use `View()` (or click on our object in the global environment) to get a sense of its columns and rows. Note the `geometry` column - this contains the information `R` packages need to create maps with our data.
+
+We can also use the `mapview` package to preview our data:
+
+```{r preview-slu-places}
+mapview(sluPlaces_sf)
+```
+
+This is particularly useful for making sure data have been projected correctly, and getting a sense of the spatial *extent* of our data.
+
+## Working with Shapefiles
+"Shapefiles" are a type of file format (actually a collection of files) that were popularized by ESRI, the makers of the ArcGIS software platform. These files are very, very common in the GIS world. They contain both the geometric and tabular data needed to map data. They're a bit clunky to work with using your operating system - there can be over a dozen constituent files, and they all must be named identically. So, they're not the most friendly files to work with, but their ubiquity makes it important to know a bit about how to work with them.
+
+### Reading Shapefiles
+For data that have already been converted to geometric data, we use the `sf` package to read them. The importing process looks similar to what we used with the `.csv` file. We'll demonstrate this with the violent crime data for Shaw:
+
+```{r read-shaw-violent}
+shawViolent <- st_read(here("data", "SHAW_Violent_2018.shp"), stringsAsFactors = FALSE)
+```
+
+We'll still use `here()` to specify the file path, but the function is different now because we need a specialized tool for geometric data. Note that we open the `.shp` file - this is the primary piece of the *family* of files that together contain all of the relevant information to locate the Shaw violent crime data in space and describe it. We work with `SHAW_Violent_2018.shp`, but the other parts must be present as well.
+
+Now, you repeat this process for the `SHAW_Part1_2018.shp`, which is stored in the same directory:
+
+```{r read-shaw-part-1}
+shawP1 <- st_read(here("data", "SHAW_Part1_2018.shp"), stringsAsFactors = FALSE)
+```
+
+### Previewing Data
+Once we have our data read in, we can start to explore it. First, take a moment to use `View()` (or click on each of the Shaw objects in your global environment) to check out their structure and get a sense of the different columns. Next, lets use `mapview` to explore our data:
+
+```{r preview-shaw-violent}
+mapview(shawViolent)
+```
+
+Now, you repeat this process with the Part 1 crime data for Shaw:
+
+```{r preview-shaw-part-1}
+mapview(shawP1)
+```
+
+### Prepping Our Data
+In order to use `leaflet` effectively, we need to "transform" our data to WGS84. We use the `sf` package's `st_transform()` function to do this:
+
+```{r transform-shaw-violent}
+shawViolent <- st_transform(shawViolent, crs = 4326)
+```
+ 
+Now, you try this syntax out on the Shaw Part 1 crime data:
+
+```{r transform-shaw-part-1}
+shawP1 <- st_transform(shawP1, crs = 4326)
+```
+
+### Creating Interactive Maps
+Finally, we'll build some simple interactive maps. Since our data are `sf` objects, we no longer need to specify the `x` and `y` columns. This makes our code a bit easier to read and write! We use the simplified crime category (`crimeCt`) for the popup this time:
+
+```{r map-shaw-violent}
+leaflet(data = shawViolent) %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addMarkers(popup = ~crimeCt)
+```
+
+Now, you repeat this process for the Shaw Part 1 crime data, swapping out out both the base map and the data object:
+
+```{r map-shaw-part-1}
+leaflet(data = shawP1) %>%
+  addProviderTiles(providers$Esri.NatGeoWorldMap) %>%
+  addMarkers(popup = ~crimeCt)
+```
